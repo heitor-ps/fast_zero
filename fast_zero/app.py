@@ -16,7 +16,6 @@ from fast_zero.schemas import (
 )
 
 app = FastAPI()
-database = []
 
 
 @app.get('/', status_code=HTTPStatus.OK, response_model=Message)
@@ -41,15 +40,19 @@ def read_users(
     return {'users': users}
 
 
-@app.get('/users/{id}', response_model=UserPublic)
-def get_user(id: int, user=UserSchema):
+@app.get('/users/{user_id}', response_model=UserPublic)
+def get_user(
+    user_id: int, user=UserSchema, session: Session = Depends(get_session)
+):
     """Returns a UserSchema user by id"""
-    if id > len(database) or id < 1:
+    db_user = session.scalar(select(User).where(User.id == user_id))
+
+    if not db_user:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='User not found'
         )
 
-    return database[id - 1]
+    return db_user
 
 
 @app.post('/users/', status_code=HTTPStatus.CREATED, response_model=UserPublic)
