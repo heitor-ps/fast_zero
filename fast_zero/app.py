@@ -14,6 +14,7 @@ from fast_zero.schemas import (
     UserPublic,
     UserSchema,
 )
+from fast_zero.security import get_password_hash
 
 app = FastAPI()
 
@@ -41,9 +42,7 @@ def read_users(
 
 
 @app.get('/users/{user_id}', response_model=UserPublic)
-def get_user(
-    user_id: int, user=UserSchema, session: Session = Depends(get_session)
-):
+def get_user(user_id: int, session: Session = Depends(get_session)):
     """Returns a UserSchema user by id"""
     db_user = session.scalar(select(User).where(User.id == user_id))
 
@@ -75,8 +74,10 @@ def create_user(user: UserSchema, session: Session = Depends(get_session)):
                 status_code=HTTPStatus.CONFLICT, detail='Email already exists'
             )
 
+    hashed_password = get_password_hash(user.password)
+
     db_user = User(
-        username=user.username, password=user.password, email=user.email
+        username=user.username, password=hashed_password, email=user.email
     )
     session.add(db_user)
     session.commit()
@@ -99,7 +100,7 @@ def update_user(
 
     try:
         db_user.username = user.username
-        db_user.password = user.password
+        db_user.password = get_password_hash(user.password)
         db_user.email = user.email
         session.commit()
         session.refresh(db_user)
