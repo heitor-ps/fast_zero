@@ -4,6 +4,7 @@ from fast_zero.security import SECRET_KEY, create_access_token
 
 
 def test_jwt():
+    """Checks if the token creation was successful"""
     data = {'test': 'test'}
     token = create_access_token(data)
 

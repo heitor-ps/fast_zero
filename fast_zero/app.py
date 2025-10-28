@@ -84,8 +84,11 @@ def create_user(user: UserSchema, session: Session = Depends(get_session)):
     hashed_password = get_password_hash(user.password)
 
     db_user = User(
-        username=user.username, password=hashed_password, email=user.email
+        username=user.username,
+        password=hashed_password,
+        email=user.email,
     )
+
     session.add(db_user)
     session.commit()
     session.refresh(db_user)
@@ -126,7 +129,7 @@ def update_user(
     current_user: User = Depends(get_current_user),
 ):
     """Updates a user in database by id"""
-    if current_user != user_id:
+    if current_user.id != user_id:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN, detail='Not enough permissions'
         )
@@ -151,9 +154,10 @@ def update_user(
 def delete_user(
     user_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Removes a user from database"""
+
     if current_user.id != user_id:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN, detail='Not enough permissions'
@@ -163,3 +167,27 @@ def delete_user(
     session.commit()
 
     return {'message': 'User deleted'}
+
+
+@app.post('/token', response_model=Token)
+def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    session: Session = Depends(get_session),
+):
+    """Endpoint for token based auth"""
+    user = session.scalar(select(User).where(User.email == form_data.username))
+
+    if not user:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Incorrect email or password',
+        )
+
+    if not verify_password(form_data.password, user.password):
+        raise HTTPException(
+            HTTPStatus.UNAUTHORIZED, detail='Incorrect email or password'
+        )
+
+    access_token = create_access_token(data={'sub': user.email})
+
+    return {'access_token': access_token, 'token_type': 'bearer'}
