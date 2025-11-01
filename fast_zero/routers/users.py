@@ -1,7 +1,7 @@
 from http import HTTPStatus
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -9,34 +9,37 @@ from sqlalchemy.orm import Session
 from fast_zero.database import get_session
 from fast_zero.models import User
 from fast_zero.schemas import (
+    FilterPage,
     Message,
-    Token,
     UserList,
     UserPublic,
     UserSchema,
 )
 from fast_zero.security import (
-    create_access_token,
     get_current_user,
     get_password_hash,
-    verify_password,
 )
 
 router = APIRouter(prefix='/users', tags=['users'])
+Session = Annotated[Session, Depends(get_session)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.get('/', response_model=UserList)
 def read_users(
-    session: Session = Depends(get_session), skip: int = 0, limit: int = 100
+    session: Session,  # type: ignore
+    filter_users: Annotated[FilterPage, Query()],
 ):
     """Returns a UserList"""
-    users = session.scalars(select(User).offset(skip).limit(limit)).all()
+    users = session.scalars(
+        select(User).offset(filter_users.offset).limit(filter_users.limit)
+    )
 
     return {'users': users}
 
 
 @router.get('/{user_id}', response_model=UserPublic)
-def get_user(user_id: int, session: Session = Depends(get_session)):
+def get_user(user_id: int, session: Session):  # type: ignore
     """Returns a UserSchema user by id"""
     db_user = session.scalar(select(User).where(User.id == user_id))
 
@@ -49,7 +52,7 @@ def get_user(user_id: int, session: Session = Depends(get_session)):
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=UserPublic)
-def create_user(user: UserSchema, session: Session = Depends(get_session)):
+def create_user(user: UserSchema, session: Session):  # type:ignore
     """Creates a user in database"""
     db_user = session.scalar(
         select(User).where(
@@ -87,8 +90,8 @@ def create_user(user: UserSchema, session: Session = Depends(get_session)):
 def update_user(
     user_id: int,
     user: UserSchema,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    current_user: CurrentUser,
+    session: Session,  # type:ignore
 ):
     """Updates a user in database by id"""
     if current_user.id != user_id:
@@ -115,8 +118,8 @@ def update_user(
 @router.delete('/{user_id}', response_model=Message)
 def delete_user(
     user_id: int,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    session: Session,  # type: ignore
+    current_user: CurrentUser,
 ):
     """Removes a user from database"""
 
@@ -129,27 +132,3 @@ def delete_user(
     session.commit()
 
     return {'message': 'User deleted'}
-
-
-@router.post('/token', response_model=Token)
-def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    session: Session = Depends(get_session),
-):
-    """Endpoint for token based auth"""
-    user = session.scalar(select(User).where(User.email == form_data.username))
-
-    if not user:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Incorrect email or password',
-        )
-
-    if not verify_password(form_data.password, user.password):
-        raise HTTPException(
-            HTTPStatus.UNAUTHORIZED, detail='Incorrect email or password'
-        )
-
-    access_token = create_access_token(data={'sub': user.email})
-
-    return {'access_token': access_token, 'token_type': 'bearer'}
