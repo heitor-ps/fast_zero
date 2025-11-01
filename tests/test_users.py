@@ -121,10 +121,27 @@ def test_get_user_by_id(client, user):
     }
 
 
-def test_delete_user(client, user, token):
+def test_delete_user(client, user, token) -> None:
+    """Checks if its possible to delete a user"""
     response = client.delete(
         f'/users/{user.id}', headers={'Authorization': f'Bearer {token}'}
     )
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'message': 'User deleted'}
+
+
+def test_update_user_with_wrong_user(client, user, token) -> None:
+    """An user tries to modify another user"""
+    response = client.put(
+        f'/users/{user.id + 1}',
+        headers={'Authorization': f'Bearer {token}'},
+        json={
+            'username': 'bob',
+            'email': 'bob@example.com',
+            'password': 'mynewpassword',
+        },
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.json() == {'detail': 'Not enough permissions'}
