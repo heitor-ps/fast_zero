@@ -5,7 +5,7 @@ from jwt import decode
 from fast_zero.security import create_access_token, settings
 
 
-def test_jwt():
+def test_jwt() -> None:
     """Checks if the token creation was successful"""
     data = {'test': 'test'}
     token = create_access_token(data)

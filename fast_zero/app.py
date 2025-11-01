@@ -12,12 +12,12 @@ app.include_router(auth.router)
 
 
 @app.get('/', status_code=HTTPStatus.OK, response_model=Message)
-def read_root():
+async def read_root():
     """Defines a dummy function"""
     return {'message': 'Olá mundo!'}
 
 
 @app.get('/disgrasa', status_code=HTTPStatus.OK, response_model=Disgrasa)
-def call_disgrasa():
+async def call_disgrasa():
     """Returns a disgrasa dictionary"""
     return {'disgrasa': 'pudinzao disgrasadao'}

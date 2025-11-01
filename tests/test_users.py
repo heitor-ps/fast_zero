@@ -3,7 +3,8 @@ from http import HTTPStatus
 from fast_zero.schemas import UserPublic
 
 
-def test_create_user(client):
+def test_create_user(client) -> None:
+    """Tries to create an user in users endpoint"""
     response = client.post(
         '/users/',
         json={
@@ -21,7 +22,8 @@ def test_create_user(client):
     }
 
 
-def test_update_integrity_error(client, user, token):
+def test_update_integrity_error(client, user, token) -> None:
+    """Tries to update an user with conflicting ID"""
     client.post(
         '/users',
         json={
